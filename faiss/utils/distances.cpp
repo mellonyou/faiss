@@ -14,6 +14,9 @@
 #include <cstdio>
 #include <cstring>
 
+#include <iostream>
+#include <fstream>
+
 #include <omp.h>
 
 #ifdef __AVX2__
@@ -26,6 +29,8 @@
 #include <faiss/impl/ResultHandler.h>
 
 #include <faiss/utils/distances_fused/distances_fused.h>
+#include <faiss/utils/onednn/onednn_utils.h>
+#include <faiss/utils/utils.h>
 
 #ifndef FINTEGER
 #define FINTEGER long
@@ -208,6 +213,8 @@ void exhaustive_inner_product_blas(
     // BLAS does not like empty matrices
     if (nx == 0 || ny == 0)
         return;
+
+	std::cout << "exhaustive_inner_product_blas ------------------------- nx=" << nx << "  ny=" << ny << "\n";
 
     /* block sizes */
     const size_t bs_x = distance_compute_blas_query_bs;
@@ -394,22 +401,44 @@ void exhaustive_L2sqr_blas_cmax_avx2(
                 j1 = ny;
             /* compute the actual dot products */
             {
-                float one = 1, zero = 0;
-                FINTEGER nyi = j1 - j0, nxi = i1 - i0, di = d;
-                sgemm_("Transpose",
-                       "Not transpose",
-                       &nyi,
-                       &nxi,
-                       &di,
-                       &one,
-                       y + j0 * d,
-                       &di,
-                       x + i0 * d,
-                       &di,
-                       &zero,
-                       ip_block.get(),
-                       &nyi);
+                if (is_dnnl_enabled()) {
+                    printf("exhaustive_L2sqr_blas_cmax_avx2 ------------------------------- with AMX\n");
+                    FINTEGER nyi = j1 - j0, nxi = i1 - i0, di = d;
+                    double t0 = getmillisecs();
+                    #if 1
+                    comput_f32bf16f32_inner_product_blas(nxi, d, nyi, d,
+                                const_cast<float*>(x + i0 * d),
+                                const_cast<float*>(y + j0 * d),
+                                ip_block.get());
+                    
+                    #else
+                    comput_f32bf16f32_inner_product_blas(nyi, d, nxi, d,
+                                const_cast<float*>(y + j0 * d),
+                                const_cast<float*>(x + i0 * d),
+                                ip_block.get());
+                    #endif
+                    printf("comput_f32bf16f32_inner_product_blas  Preprocessing in %.6f ms\n", (getmillisecs() - t0));
+                } else {
+                    printf("exhaustive_L2sqr_blas_cmax_avx2 ------------------------------- without AMX\n");
+                    float one = 1, zero = 0;
+                    FINTEGER nyi = j1 - j0, nxi = i1 - i0, di = d;
+                    
+                    sgemm_("Transpose",
+                            "Not transpose",
+                            &nyi,
+                            &nxi,
+                            &di,
+                            &one,
+                            y + j0 * d,
+                            &di,
+                            x + i0 * d,
+                            &di,
+                            &zero,
+                            ip_block.get(),
+                            &nyi);
+                }
             }
+
 #pragma omp parallel for
             for (int64_t i = i0; i < i1; i++) {
                 float* ip_line = ip_block.get() + (i - i0) * (j1 - j0);
@@ -640,8 +669,8 @@ struct Run_search_L2sqr {
  *******************************************************/
 
 int distance_compute_blas_threshold = 20;
-int distance_compute_blas_query_bs = 4096;
-int distance_compute_blas_database_bs = 1024;
+int distance_compute_blas_query_bs = 500000; //4096;
+int distance_compute_blas_database_bs = 50000; //10240; //1024;
 int distance_compute_min_k_reservoir = 100;
 
 void knn_inner_product(
