@@ -15,17 +15,30 @@
 
 namespace faiss {
 
+/**
+ * The algorithm of clustering
+ */
+enum ClusteringType
+{
+    K_MEANS = 0,
+    K_MEANS_PLUS_PLUS,
+    K_MEANS_TWO,
+};
+
+// The default algorithm use the K_MEANS
+extern ClusteringType clustering_type;
+
 /** Class for the clustering parameters. Can be passed to the
  * constructor of the Clustering object.
  */
 struct ClusteringParameters {
     /// number of clustering iterations
-    int niter = 25;
+    int niter = 3; //25;
     /// redo clustering this many times and keep the clusters with the best
     /// objective
     int nredo = 1;
 
-    bool verbose = false;
+    bool verbose = true;
     /// whether to normalize centroids after each iteration (useful for inner
     /// product clustering)
     bool spherical = false;
@@ -125,6 +138,25 @@ struct Clustering : ClusteringParameters {
     /// Post-process the centroids after each centroid update.
     /// includes optional L2 normalization and nearest integer rounding
     void post_process_centroids();
+
+void kmeans_algorithm(
+            std::vector<int>& centroids_index,
+            int64_t random_seed,
+            size_t n_input_centroids,
+            size_t d,
+            size_t k,
+            idx_t nx,
+            const uint8_t* x_in);
+
+    void kmeans_plus_plus_algorithm(
+            std::vector<int>& centroids_index,
+            int64_t random_seed,
+            size_t n_input_centroids,
+            size_t d,
+            size_t k,
+            idx_t nx,
+            const uint8_t* x_in);
+
 
     virtual ~Clustering() {}
 };
