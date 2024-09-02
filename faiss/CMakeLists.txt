@@ -198,8 +198,6 @@ set(FAISS_HEADERS
   utils/hamming-inl.h
   utils/hamming.h
   utils/ordered_key_value.h
-  utils/onednn/bfoat16.h
-  utils/onednn/onednn_utils.h
   utils/partitioning.h
   utils/prefetch.h
   utils/quantize_lut.h
@@ -320,14 +318,6 @@ set_target_properties(faiss_sve PROPERTIES
   POSITION_INDEPENDENT_CODE ON
   WINDOWS_EXPORT_ALL_SYMBOLS ON
 )
-
-find_library(RT_LIB rt)
-find_library(DNNL_LIB dnnl)
-message(DNNL_LIB=${DNNL_LIB})
-target_link_libraries(faiss PRIVATE ${RT_LIB} ${DNNL_LIB})
-target_link_libraries(faiss_avx2 PRIVATE ${RT_LIB} ${DNNL_LIB})
-target_link_libraries(faiss_avx512 PRIVATE ${RT_LIB} ${DNNL_LIB})
-
 
 if(WIN32)
   target_compile_definitions(faiss PRIVATE FAISS_MAIN_LIB)

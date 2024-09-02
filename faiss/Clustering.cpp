@@ -26,9 +26,6 @@
 #include <faiss/utils/random.h>
 #include <faiss/utils/utils.h>
 
-#include <iostream>
-#include <fstream>
-
 namespace faiss {
 
 Clustering::Clustering(int d, int k) : d(d), k(k) {}
@@ -297,8 +294,6 @@ void Clustering::train_encoded(
             nx,
             k);
 
-	std::cout << "Clustering::train_encoded ---------------------------------- \n";
-
     FAISS_THROW_IF_NOT_FMT(
             (!codec || codec->d == d),
             "Codec dimension %d not the same as data dimension %d",
@@ -454,6 +449,7 @@ void Clustering::train_encoded(
         if (!index.is_trained) {
             index.train(k, centroids.data());
         }
+
         index.add(k, centroids.data());
 
         // k-means iterations
@@ -487,14 +483,6 @@ void Clustering::train_encoded(
                             assign.get() + i0);
                 }
             }
-
-//			if (i == 0) {
-//                std::ofstream outFile("/tmp/assign_l2.txt");
-//                for (int i=0; i<nx; i++) {
-//                    outFile << assign.get()[i] << std::endl;
-//                }
-//                outFile.close();
-//            }
 
             InterruptCallback::check();
             t_search_tot += getmillisecs() - t0s;
@@ -535,7 +523,7 @@ void Clustering::train_encoded(
 
             if (verbose) {
                 printf("  Iteration %d (%.2f s, search %.2f s): "
-                       "objective=%g imbalance=%.3f nsplit=%d       \n",
+                       "objective=%g imbalance=%.3f nsplit=%d       \r",
                        i,
                        stats.time,
                        stats.time_search,
